@@ -29,37 +29,42 @@ VOLUME = 0.1
 
 class Tone:  # 単音
 
-    def __init__(self, scale, note):  # 引数は音名とx分音符のx
+    def __init__(self, scale, length):  # 引数は音名とx分音符のx
         self.scale = scale
-        self.length = 4.0 / note
+        self.length = length
 
 
 class Chord:  # 和音
 
-    wave = 0
+    def __init__(self, tone_tuple_tuple):  # 引数は単音のタプルのタプル
+        tones = [
+            Tone(tone_tuple[0], tone_tuple[1])
+            for tone_tuple in tone_tuple_tuple
+        ]
+        self.wave = Chord.calculate_wave(tones)
 
-    def __init__(self, tone_list):  # 引数は単音のリスト
-        for tone in tone_list:
+    @staticmethod
+    def calculate_wave(tones):
+        wave = 0
+        for tone in tones:
             step = (
                 2 * math.pi) * NOTE_FREQ[tone.scale] / 44100  # 2πf*(1/rate)
-            self.wave += np.sin(
-                step * np.arange(tone.length * (60 / BPM) * RATE))  # sin(2πft)
+            wave += np.sin(step * np.arange(tone.length *
+                                            (60 / BPM) * RATE))  # sin(2πft)
+        return wave
 
 
 class Tuplet:  # 連符
 
-    wave = []
-
     def __init__(self, chord_lst_lst):  # 引数は和音のリストのリスト
+        waves = []
         for chord_lst in chord_lst_lst:
-            len_sum = 0
+            sub_waves = []
             for chord in chord_lst:
-                for i in range(len(chord.wave)):
-                    try:
-                        self.wave[i + len_sum] += chord.wave[i]
-                    except IndexError:
-                        self.wave.append(chord.wave[i])
-                len_sum += len(chord.wave)
+                sub_waves.append(chord.wave)
+            sub_wave = np.concatenate(sub_waves)
+            waves.append(sub_wave)
+        self.wave = np.sum(waves, axis=0)
 
 
 def main():
@@ -70,16 +75,15 @@ def main():
                      output=True)
 
     wave = []
-    wave.append(Chord([Tone("d5", 4), Tone("b4", 4)]).wave)
-    wave.append(Chord([Tone("g5", 2), Tone("b4", 2)]).wave)
+    wave.append(Chord((("d5", 1), ("b4", 1))).wave)
+    wave.append(Chord((("g5", 2), ("b4", 2))).wave)
     wave.append(
-        Tuplet([[Chord([Tone("b5", 8)]),
-                 Chord([Tone("g5", 8)])], [Chord([Tone("d5", 4)])]]).wave)
-    wave.append(Chord([Tone("b5", 2), Tone("d5", 2)]).wave)
-    wave.append(Chord([Tone("a5", 4), Tone("c5", 4)]).wave)
-    wave.append(Chord([Tone("g5", 2), Tone("b4", 2)]).wave)
-    wave.append(Chord([Tone("e5", 4), Tone("c5", 4)]).wave)
-    wave.append(Chord([Tone("d5", 2), Tone("b4", 2)]).wave)
+        Tuplet(((Chord((("b5", 8)), ("g5", 8))), (Chord((("d5", 4)))))).wave)
+    wave.append(Chord((("b5", 2), ("d5", 2))).wave)
+    wave.append(Chord((("a5", 1), ("c5", 1))).wave)
+    wave.append(Chord((("g5", 2), ("b4", 2))).wave)
+    wave.append(Chord((("e5", 1), ("c5", 1))).wave)
+    wave.append(Chord((("d5", 2), ("b4", 2))).wave)
     # 全部のsin波をつなげる
     wave = np.concatenate(wave, axis=0)
     wave *= VOLUME

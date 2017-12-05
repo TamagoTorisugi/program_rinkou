@@ -2,6 +2,7 @@ import math
 import time
 import numpy as np
 import pyaudio
+import sys
 
 RATE = 44100  # sample rate
 CHANNEL_NUM = 1  # チャンネル数 今回はモノラルなので1
@@ -21,14 +22,15 @@ NOTE_OFFSET = {  # ラ基準
 
 
 def seek_freq(string):
-    if type(string) != str:
-        raise TypeError
     offset = 0.0
     for s in string:
-        try:
+        if s in NOTE_OFFSET:
             offset += NOTE_OFFSET[s] / 12
-        except KeyError:
+        elif s.isdigit():
             offset += int(s) - 4
+        else:
+            print("Error.")
+            sys.exit()
     return 440 * 2**offset
 
 
@@ -46,12 +48,11 @@ class Score:  # 楽譜で一つのクラスにする BPMはクラスの引数と
         waves = []
         for tone_inf in tone_inf_lst:  # tone_infは直列に鳴らす
             freq_lst = []  # tone_infの中身の周波数
-            length = 0
             sub_wave = np.array([])
             for tone in tone_inf:
-                try:
+                if type(tone) == str:
                     freq_lst.append(seek_freq(tone))
-                except TypeError:
+                else:
                     length = tone
                     sub_wave = np.append(sub_wave,
                                          self.make_wave(freq_lst, length))
@@ -89,7 +90,7 @@ def main():
 
     stream.write(waveag.astype(np.float32).tostring())
 
-    time.sleep(3)
+    time.sleep(2)
 
     wavej = Score([
         [["g4", 0.5]],
@@ -111,6 +112,21 @@ def main():
     ], 90).waveall
 
     stream.write(wavej.astype(np.float32).tostring())
+
+    time.sleep(2)
+
+    wavec = Score([
+        [["f#4", "d5", 2], ["d3", 1, "f#3", 1]],
+        [["a4", "c#5", 2], ["a3", 1, "g3", 1]],
+        [["d4", "b4", 2], ["f#3", 1, "d3", 1]],
+        [["f#4", "a4", 2], ["f#3", 1, "e3", 1]],
+        [["b3", "g4", 2], ["d3", 1, "b2", 1]],
+        [["d4", "f#4", 2], ["d3", 1, "a2", 1]],
+        [["b3", "g4", 2], ["g2", 1, "b2", 1]],
+        [["c#4", "a4", 2], ["c#3", 1, "a2", 1]],
+    ], 60).waveall
+
+    stream.write(wavec.astype(np.float32).tostring())
 
 
 if __name__ == '__main__':
